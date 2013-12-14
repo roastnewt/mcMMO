@@ -451,7 +451,7 @@ public class McMMOPlayer {
 
         setRecentSound(sound);
         actualizeLastSound();
-        player.playSound(player.getLocation(), sound, volume,pitch);
+        player.playSound(player.getLocation(), sound, volume, pitch);
     }
 
     public Sound getRecentSound() {
