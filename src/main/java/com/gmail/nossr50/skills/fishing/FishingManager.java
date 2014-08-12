@@ -12,7 +12,6 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.WeatherType;
 import org.bukkit.World;
-import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.enchantments.Enchantment;
@@ -43,6 +42,7 @@ import com.gmail.nossr50.config.treasure.TreasureConfig;
 import com.gmail.nossr50.datatypes.player.McMMOPlayer;
 import com.gmail.nossr50.datatypes.skills.SecondaryAbility;
 import com.gmail.nossr50.datatypes.skills.SkillType;
+import com.gmail.nossr50.datatypes.skills.XPGainReason;
 import com.gmail.nossr50.datatypes.treasure.EnchantmentTreasure;
 import com.gmail.nossr50.datatypes.treasure.FishingTreasure;
 import com.gmail.nossr50.datatypes.treasure.Rarity;
@@ -198,10 +198,7 @@ public class FishingManager extends SkillManager {
         }
 
         // Make sure this is a body of water, not just a block of ice.
-        Biome biome = block.getBiome();
-        boolean isFrozenBiome = (biome == Biome.FROZEN_OCEAN || biome == Biome.FROZEN_RIVER || biome == Biome.TAIGA || biome == Biome.TAIGA_HILLS || biome == Biome.ICE_PLAINS || biome == Biome.ICE_MOUNTAINS);
-
-        if (!isFrozenBiome && (block.getRelative(BlockFace.DOWN, 3).getType() != Material.STATIONARY_WATER)) {
+        if (!Fishing.iceFishingBiomes.contains(block.getBiome()) && (block.getRelative(BlockFace.DOWN, 3).getType() != Material.STATIONARY_WATER)) {
             return false;
         }
 
@@ -281,12 +278,11 @@ public class FishingManager extends SkillManager {
     public void masterAngler(Fish hook) {
         Player player = getPlayer();
         Location location = hook.getLocation();
-        Biome biome = location.getBlock().getBiome();
         double biteChance = hook.getBiteChance();
 
         hookLocation = location;
 
-        if (biome == Biome.RIVER || biome == Biome.OCEAN) {
+        if (Fishing.masterAnglerBiomes.contains(location.getBlock().getBiome())) {
             biteChance = biteChance * AdvancedConfig.getInstance().getMasterAnglerBiomeModifier();
         }
 
@@ -304,6 +300,7 @@ public class FishingManager extends SkillManager {
      */
     public void handleFishing(Item fishingCatch) {
         this.fishingCatch = fishingCatch;
+        int fishXp = ExperienceConfig.getInstance().getFishXp(fishingCatch.getItemStack().getData());
         int treasureXp = 0;
         Player player = getPlayer();
         FishingTreasure treasure = null;
@@ -314,8 +311,6 @@ public class FishingManager extends SkillManager {
         }
 
         if (treasure != null) {
-            player.sendMessage(LocaleLoader.getString("Fishing.Ability.TH.ItemFound"));
-
             ItemStack treasureDrop = treasure.getDrop().clone(); // Not cloning is bad, m'kay?
             Map<Enchantment, Integer> enchants = new HashMap<Enchantment, Integer>();
 
@@ -347,11 +342,15 @@ public class FishingManager extends SkillManager {
                     player.sendMessage(LocaleLoader.getString("Fishing.Ability.TH.MagicFound"));
                 }
 
+                if (Config.getInstance().getFishingExtraFish()) {
+                    Misc.dropItem(player.getEyeLocation(), fishingCatch.getItemStack());
+                }
+
                 fishingCatch.setItemStack(treasureDrop);
             }
         }
 
-        applyXpGain(ExperienceConfig.getInstance().getFishingBaseXP() + treasureXp);
+        applyXpGain(fishXp + treasureXp, XPGainReason.PVE);
     }
 
     /**
@@ -439,7 +438,7 @@ public class FishingManager extends SkillManager {
 
             Misc.dropItem(target.getLocation(), drop);
             CombatUtils.dealDamage(target, Math.max(target.getMaxHealth() / 4, 1)); // Make it so you can shake a mob no more than 4 times.
-            applyXpGain(ExperienceConfig.getInstance().getFishingShakeXP());
+            applyXpGain(ExperienceConfig.getInstance().getFishingShakeXP(), XPGainReason.PVE);
         }
     }
 
@@ -450,6 +449,8 @@ public class FishingManager extends SkillManager {
      */
     private FishingTreasure getFishingTreasure() {
         double diceRoll = Misc.getRandom().nextDouble() * 100;
+        diceRoll -= getPlayer().getItemInHand().getEnchantmentLevel(Enchantment.LUCK);
+
         FishingTreasure treasure = null;
 
         for (Rarity rarity : Rarity.values()) {

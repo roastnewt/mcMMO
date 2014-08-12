@@ -35,6 +35,8 @@ public class TreasureConfig extends ConfigLoader {
     public List<ExcavationTreasure> excavationFromMycel     = new ArrayList<ExcavationTreasure>();
     public List<ExcavationTreasure> excavationFromSoulSand  = new ArrayList<ExcavationTreasure>();
     public List<ExcavationTreasure> excavationFromSnow      = new ArrayList<ExcavationTreasure>();
+    public List<ExcavationTreasure> excavationFromRedSand   = new ArrayList<ExcavationTreasure>();
+    public List<ExcavationTreasure> excavationFromPodzol    = new ArrayList<ExcavationTreasure>();
 
     public List<HylianTreasure> hylianFromBushes  = new ArrayList<HylianTreasure>();
     public List<HylianTreasure> hylianFromFlowers = new ArrayList<HylianTreasure>();
@@ -158,26 +160,29 @@ public class TreasureConfig extends ConfigLoader {
             // Validate all the things!
             List<String> reason = new ArrayList<String>();
 
+            String[] treasureInfo = treasureName.split("[|]");
+            String materialName = treasureInfo[0];
+
             /*
              * Material, Amount, and Data
              */
             Material material;
 
-            if (treasureName.contains("POTION")) {
+            if (materialName.contains("POTION")) {
                 material = Material.POTION;
             }
-            else if (treasureName.contains("INK_SACK")) {
+            else if (materialName.contains("INK_SACK")) {
                 material = Material.INK_SACK;
             }
             else {
-                material = Material.matchMaterial(treasureName);
+                material = Material.matchMaterial(materialName);
             }
 
             int amount = config.getInt(type + "." + treasureName + ".Amount");
-            int data = config.getInt(type + "." + treasureName + ".Data");
+            short data = (treasureInfo.length == 2) ? Byte.valueOf(treasureInfo[1]) : (short) config.getInt(type + "." + treasureName + ".Data");
 
             if (material == null) {
-                reason.add("Invalid material: " + treasureName);
+                reason.add("Invalid material: " + materialName);
             }
 
             if (amount <= 0) {
@@ -226,8 +231,8 @@ public class TreasureConfig extends ConfigLoader {
              */
             ItemStack item = null;
 
-            if (treasureName.contains("POTION")) {
-                String potionType = treasureName.substring(7);
+            if (materialName.contains("POTION")) {
+                String potionType = materialName.substring(7);
 
                 try {
                     item = new Potion(PotionType.valueOf(potionType.toUpperCase().trim())).toItemStack(amount);
@@ -236,8 +241,8 @@ public class TreasureConfig extends ConfigLoader {
                     reason.add("Invalid Potion_Type: " + potionType);
                 }
             }
-            else if (treasureName.contains("INK_SACK")) {
-                String color = treasureName.substring(9);
+            else if (materialName.contains("INK_SACK")) {
+                String color = materialName.substring(9);
 
                 try {
                     Dye dye = new Dye();
@@ -250,17 +255,17 @@ public class TreasureConfig extends ConfigLoader {
                 }
             }
             else if (material != null) {
-                item = new ItemStack(material, amount, (short) data);
+                item = new ItemStack(material, amount, data);
 
                 if (config.contains(type + "." + treasureName + ".Custom_Name")) {
                     ItemMeta itemMeta = item.getItemMeta();
-                    itemMeta.setDisplayName(config.getString(type + "." + treasureName + "Custom_Name"));
+                    itemMeta.setDisplayName(config.getString(type + "." + treasureName + ".Custom_Name"));
                     item.setItemMeta(itemMeta);
                 }
 
                 if (config.contains(type + "." + treasureName + ".Lore")) {
                     ItemMeta itemMeta = item.getItemMeta();
-                    itemMeta.setLore(config.getStringList(type + "." + treasureName + "Custom_Name"));
+                    itemMeta.setLore(config.getStringList(type + "." + treasureName + ".Lore"));
                     item.setItemMeta(itemMeta);
                 }
             }
@@ -370,6 +375,14 @@ public class TreasureConfig extends ConfigLoader {
 
                     if (dropList.contains("Snow")) {
                         excavationFromSnow.add(excavationTreasure);
+                    }
+
+                    if (dropList.contains("Red_Sand")) {
+                        excavationFromRedSand.add(excavationTreasure);
+                    }
+
+                    if (dropList.contains("Podzol")) {
+                        excavationFromPodzol.add(excavationTreasure);
                     }
                 }
                 else if (isHylian) {

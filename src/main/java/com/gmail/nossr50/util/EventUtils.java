@@ -8,6 +8,7 @@ import org.bukkit.entity.Fish;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.PluginManager;
 
 import com.gmail.nossr50.mcMMO;
@@ -15,7 +16,9 @@ import com.gmail.nossr50.datatypes.party.Party;
 import com.gmail.nossr50.datatypes.player.McMMOPlayer;
 import com.gmail.nossr50.datatypes.player.PlayerProfile;
 import com.gmail.nossr50.datatypes.skills.AbilityType;
+import com.gmail.nossr50.datatypes.skills.SecondaryAbility;
 import com.gmail.nossr50.datatypes.skills.SkillType;
+import com.gmail.nossr50.datatypes.skills.XPGainReason;
 import com.gmail.nossr50.events.experience.McMMOPlayerLevelChangeEvent;
 import com.gmail.nossr50.events.experience.McMMOPlayerLevelDownEvent;
 import com.gmail.nossr50.events.experience.McMMOPlayerLevelUpEvent;
@@ -33,6 +36,7 @@ import com.gmail.nossr50.events.skills.abilities.McMMOPlayerAbilityDeactivateEve
 import com.gmail.nossr50.events.skills.fishing.McMMOPlayerFishingTreasureEvent;
 import com.gmail.nossr50.events.skills.fishing.McMMOPlayerMagicHunterEvent;
 import com.gmail.nossr50.events.skills.repair.McMMOPlayerRepairCheckEvent;
+import com.gmail.nossr50.events.skills.secondaryabilities.SecondaryAbilityEvent;
 import com.gmail.nossr50.events.skills.unarmed.McMMOPlayerDisarmEvent;
 import com.gmail.nossr50.locale.LocaleLoader;
 import com.gmail.nossr50.util.player.UserManager;
@@ -45,6 +49,13 @@ public class EventUtils {
         return event;
     }
 
+    public static SecondaryAbilityEvent callSecondaryAbilityEvent(Player player, SecondaryAbility secondaryAbility) {
+        SecondaryAbilityEvent event = new SecondaryAbilityEvent(player, secondaryAbility);
+        mcMMO.p.getServer().getPluginManager().callEvent(event);
+
+        return event;
+    }
+
     public static FakePlayerAnimationEvent callFakeArmSwingEvent(Player player) {
         FakePlayerAnimationEvent event = new FakePlayerAnimationEvent(player);
         mcMMO.p.getServer().getPluginManager().callEvent(event);
@@ -52,8 +63,8 @@ public class EventUtils {
         return event;
     }
 
-    public static boolean handleLevelChangeEvent(Player player, SkillType skill, int levelsChanged, float xpRemoved, boolean isLevelUp) {
-        McMMOPlayerLevelChangeEvent event = isLevelUp ? new McMMOPlayerLevelUpEvent(player, skill, levelsChanged) : new McMMOPlayerLevelDownEvent(player, skill, levelsChanged);
+    public static boolean handleLevelChangeEvent(Player player, SkillType skill, int levelsChanged, float xpRemoved, boolean isLevelUp, XPGainReason xpGainReason) {
+        McMMOPlayerLevelChangeEvent event = isLevelUp ? new McMMOPlayerLevelUpEvent(player, skill, levelsChanged, xpGainReason) : new McMMOPlayerLevelDownEvent(player, skill, levelsChanged, xpGainReason);
         mcMMO.p.getServer().getPluginManager().callEvent(event);
 
         boolean isCancelled = event.isCancelled();
@@ -139,8 +150,8 @@ public class EventUtils {
         return !isCancelled;
     }
 
-    public static boolean handleXpGainEvent(Player player, SkillType skill, float xpGained) {
-        McMMOPlayerXpGainEvent event = new McMMOPlayerXpGainEvent(player, skill, xpGained);
+    public static boolean handleXpGainEvent(Player player, SkillType skill, float xpGained, XPGainReason xpGainReason) {
+        McMMOPlayerXpGainEvent event = new McMMOPlayerXpGainEvent(player, skill, xpGained, xpGainReason);
         mcMMO.p.getServer().getPluginManager().callEvent(event);
 
         boolean isCancelled = event.isCancelled();
@@ -192,5 +203,27 @@ public class EventUtils {
         mcMMO.p.getServer().getPluginManager().callEvent(event);
 
         return event;
+    }
+
+    /**
+     * There is a bug in CraftBukkit that causes piston events to
+     * fire multiple times. Check this method to see if the piston event
+     * should be processed.
+     *
+     * @param block      Block object of the piston block
+     * @param isExtendEvent should be true when called from BlockPistonExtendEvent
+     *
+     * @return true if the PistonEvent should be processed, false otherwise
+     */
+    public static boolean shouldProcessEvent(Block block, boolean isExtendEvent) {
+        String pistonAction = isExtendEvent ? "EXTEND" : "RETRACT";
+        String lastAction = block.hasMetadata(mcMMO.pistonDataKey) ? block.getMetadata(mcMMO.pistonDataKey).get(0).asString() : "";
+
+        if (!lastAction.equals(pistonAction)) {
+            block.setMetadata(mcMMO.pistonDataKey, new FixedMetadataValue(mcMMO.p, pistonAction));
+            return true;
+        }
+
+        return false;
     }
 }

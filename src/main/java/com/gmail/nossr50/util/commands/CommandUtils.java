@@ -90,6 +90,10 @@ public final class CommandUtils {
      */
     public static boolean checkPlayerExistence(CommandSender sender, String playerName, McMMOPlayer mcMMOPlayer) {
         if (mcMMOPlayer != null) {
+            if (CommandUtils.hidden(sender, mcMMOPlayer.getPlayer(), false)) {
+                sender.sendMessage(LocaleLoader.getString("Commands.Offline"));
+                return false;
+            }
             return true;
         }
 
@@ -191,10 +195,10 @@ public final class CommandUtils {
 
     public static String displaySkill(PlayerProfile profile, SkillType skill) {
         if (skill.isChildSkill()) {
-            return LocaleLoader.getString("Skills.ChildStats", LocaleLoader.getString(StringUtils.getCapitalized(skill.toString()) + ".Listener"), " ", profile.getSkillLevel(skill));
+            return LocaleLoader.getString("Skills.ChildStats", LocaleLoader.getString(StringUtils.getCapitalized(skill.toString()) + ".Listener") + " ", profile.getSkillLevel(skill));
         }
 
-        return LocaleLoader.getString("Skills.Stats", LocaleLoader.getString(StringUtils.getCapitalized(skill.toString()) + ".Listener"), " ", profile.getSkillLevel(skill), profile.getSkillXpLevel(skill), profile.getXpToLevel(skill));
+        return LocaleLoader.getString("Skills.Stats", LocaleLoader.getString(StringUtils.getCapitalized(skill.toString()) + ".Listener") + " ", profile.getSkillLevel(skill), profile.getSkillXpLevel(skill), profile.getXpToLevel(skill));
     }
 
     private static void printGroupedSkillData(Player inspect, CommandSender display, String header, List<SkillType> skillGroup) {
@@ -214,6 +218,19 @@ public final class CommandUtils {
         if (size > 1) {
             display.sendMessage(displayData.toArray(new String[size]));
         }
+    }
+
+    public static List<String> getOnlinePlayerNames(CommandSender sender) {
+        Player player = sender instanceof Player ? (Player) sender : null;
+        List<String> onlinePlayerNames = new ArrayList<String>();
+
+        for (Player onlinePlayer : mcMMO.p.getServer().getOnlinePlayers()) {
+            if (player != null && player.canSee(onlinePlayer)) {
+                onlinePlayerNames.add(onlinePlayer.getName());
+            }
+        }
+
+        return onlinePlayerNames;
     }
 
     /**

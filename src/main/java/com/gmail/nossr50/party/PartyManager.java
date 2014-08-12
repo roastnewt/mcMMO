@@ -170,7 +170,7 @@ public final class PartyManager {
      */
     public static Party getParty(String partyName) {
         for (Party party : parties) {
-            if (party.getName().equals(partyName)) {
+            if (party.getName().equalsIgnoreCase(partyName)) {
                 return party;
             }
         }
@@ -258,6 +258,11 @@ public final class PartyManager {
     public static void disbandParty(Party party) {
         for (Player member : party.getOnlineMembers()) {
             processPartyLeaving(UserManager.getPlayer(member));
+        }
+
+        // Disband the alliance between the disbanded party and it's ally
+        if (party.getAlly() != null) {
+            party.getAlly().setAlly(null);
         }
 
         parties.remove(party);
@@ -457,16 +462,6 @@ public final class PartyManager {
         Party party = mcMMOPlayer.getParty();
 
         return !party.isLocked() || party.getLeader().equalsIgnoreCase(mcMMOPlayer.getPlayer().getName());
-    }
-
-    /**
-     * Check if a string is a valid party name.
-     *
-     * @param partyName The party name to check
-     * @return true if this is a valid party, false otherwise
-     */
-    public static boolean isParty(String partyName) {
-        return getParty(partyName) != null;
     }
 
     /**

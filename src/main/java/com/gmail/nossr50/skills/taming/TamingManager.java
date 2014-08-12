@@ -16,14 +16,14 @@ import com.gmail.nossr50.config.Config;
 import com.gmail.nossr50.datatypes.player.McMMOPlayer;
 import com.gmail.nossr50.datatypes.skills.SecondaryAbility;
 import com.gmail.nossr50.datatypes.skills.SkillType;
-import com.gmail.nossr50.events.skills.secondaryabilities.SecondaryAbilityWeightedActivationCheckEvent;
+import com.gmail.nossr50.datatypes.skills.XPGainReason;
+import com.gmail.nossr50.events.fake.FakeEntityTameEvent;
 import com.gmail.nossr50.locale.LocaleLoader;
 import com.gmail.nossr50.runnables.skills.BleedTimerTask;
 import com.gmail.nossr50.skills.SkillManager;
 import com.gmail.nossr50.util.Misc;
 import com.gmail.nossr50.util.Permissions;
 import com.gmail.nossr50.util.StringUtils;
-import com.gmail.nossr50.util.skills.CombatUtils;
 import com.gmail.nossr50.util.skills.SkillUtils;
 
 public class TamingManager extends SkillManager {
@@ -71,15 +71,15 @@ public class TamingManager extends SkillManager {
     public void awardTamingXP(LivingEntity entity) {
         switch (entity.getType()) {
             case HORSE:
-                applyXpGain(Taming.horseXp);
+                applyXpGain(Taming.horseXp, XPGainReason.PVE);
                 return;
 
             case WOLF:
-                applyXpGain(Taming.wolfXp);
+                applyXpGain(Taming.wolfXp, XPGainReason.PVE);
                 return;
 
             case OCELOT:
-                applyXpGain(Taming.ocelotXp);
+                applyXpGain(Taming.ocelotXp, XPGainReason.PVE);
                 return;
 
             default:
@@ -94,18 +94,16 @@ public class TamingManager extends SkillManager {
      * @param damage The damage being absorbed by the wolf
      */
     public void fastFoodService(Wolf wolf, double damage) {
-        double chance = Taming.fastFoodServiceActivationChance / activationChance;
-        SecondaryAbilityWeightedActivationCheckEvent event = new SecondaryAbilityWeightedActivationCheckEvent(getPlayer(), SecondaryAbility.FAST_FOOD, chance);
-        mcMMO.p.getServer().getPluginManager().callEvent(event);
-        if ((event.getChance() * activationChance) > Misc.getRandom().nextInt(activationChance)) {
+        if (!SkillUtils.activationSuccessful(SecondaryAbility.FAST_FOOD, getPlayer(), Taming.fastFoodServiceActivationChance, activationChance)) {
+            return;
+        }
 
-            double health = wolf.getHealth();
-            double maxHealth = wolf.getMaxHealth();
+        double health = wolf.getHealth();
+        double maxHealth = wolf.getMaxHealth();
 
-            if (health < maxHealth) {
-                double newHealth = health + damage;
-                wolf.setHealth(Math.min(newHealth, maxHealth));
-            }
+        if (health < maxHealth) {
+            double newHealth = health + damage;
+            wolf.setHealth(Math.min(newHealth, maxHealth));
         }
     }
 
@@ -114,9 +112,8 @@ public class TamingManager extends SkillManager {
      *
      * @param target The LivingEntity to apply Gore on
      * @param damage The initial damage
-     * @param wolf The wolf using the ability
      */
-    public double gore(LivingEntity target, double damage, Wolf wolf) {
+    public double gore(LivingEntity target, double damage) {
         if (!SkillUtils.activationSuccessful(SecondaryAbility.GORE, getPlayer(), getSkillLevel(), activationChance)) {
             return 0;
         }
@@ -130,11 +127,11 @@ public class TamingManager extends SkillManager {
         getPlayer().sendMessage(LocaleLoader.getString("Combat.Gore"));
 
         damage = (damage * Taming.goreModifier) - damage;
-        return CombatUtils.callFakeDamageEvent(wolf, target, damage);
+        return damage;
     }
 
-    public double sharpenedClaws(LivingEntity target, Wolf wolf) {
-        return CombatUtils.callFakeDamageEvent(wolf, target, Taming.sharpenedClawsBonusDamage);
+    public double sharpenedClaws() {
+        return Taming.sharpenedClawsBonusDamage;
     }
 
     /**
@@ -145,7 +142,7 @@ public class TamingManager extends SkillManager {
             return;
         }
 
-        callOfTheWild(EntityType.OCELOT, Config.getInstance().getTamingCOTWOcelotCost());
+        callOfTheWild(EntityType.OCELOT, Config.getInstance().getTamingCOTWCost(EntityType.OCELOT));
     }
 
     /**
@@ -156,7 +153,7 @@ public class TamingManager extends SkillManager {
             return;
         }
 
-        callOfTheWild(EntityType.WOLF, Config.getInstance().getTamingCOTWWolfCost());
+        callOfTheWild(EntityType.WOLF, Config.getInstance().getTamingCOTWCost(EntityType.WOLF));
     }
 
     /**
@@ -167,7 +164,7 @@ public class TamingManager extends SkillManager {
             return;
         }
 
-        callOfTheWild(EntityType.HORSE, Config.getInstance().getTamingCOTWHorseCost());
+        callOfTheWild(EntityType.HORSE, Config.getInstance().getTamingCOTWCost(EntityType.HORSE));
     }
 
     /**
@@ -226,8 +223,16 @@ public class TamingManager extends SkillManager {
         for (int i = 0; i < amount; i++) {
             LivingEntity entity = (LivingEntity) player.getWorld().spawnEntity(player.getLocation(), type);
 
+            FakeEntityTameEvent event = new FakeEntityTameEvent(entity, player);
+            mcMMO.p.getServer().getPluginManager().callEvent(event);
+
+            if (event.isCancelled()) {
+                continue;
+            }
+
             entity.setMetadata(mcMMO.entityMetadataKey, mcMMO.metadataValue);
             ((Tameable) entity).setOwner(player);
+            entity.setRemoveWhenFarAway(false);
 
             switch (type) {
                 case OCELOT:
@@ -246,7 +251,7 @@ public class TamingManager extends SkillManager {
                     entity.setHealth(entity.getMaxHealth());
                     horse.setColor(Horse.Color.values()[Misc.getRandom().nextInt(Horse.Color.values().length)]);
                     horse.setStyle(Horse.Style.values()[Misc.getRandom().nextInt(Horse.Style.values().length)]);
-                    horse.setJumpStrength(Math.min(Math.min(Misc.getRandom().nextDouble(), Misc.getRandom().nextDouble()) * 2, AdvancedConfig.getInstance().getMaxHorseJumpStrength()));
+                    horse.setJumpStrength(Math.max(AdvancedConfig.getInstance().getMinHorseJumpStrength(), Math.min(Math.min(Misc.getRandom().nextDouble(), Misc.getRandom().nextDouble()) * 2, AdvancedConfig.getInstance().getMaxHorseJumpStrength())));
                     //TODO: setSpeed, once available
                     break;
 
@@ -260,7 +265,7 @@ public class TamingManager extends SkillManager {
             }
         }
 
-        player.setItemInHand(new ItemStack(heldItem.getType(), heldItemAmount - summonAmount));
+        player.setItemInHand(heldItemAmount == summonAmount ? null : new ItemStack(heldItem.getType(), heldItemAmount - summonAmount));
         player.sendMessage(LocaleLoader.getString("Taming.Summon.Complete"));
     }
 

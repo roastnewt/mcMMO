@@ -1,18 +1,17 @@
 package com.gmail.nossr50.util;
 
 import org.bukkit.ChatColor;
+import org.bukkit.CoalType;
 import org.bukkit.DyeColor;
 import org.bukkit.Material;
 import org.bukkit.inventory.FurnaceRecipe;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.material.Coal;
 import org.bukkit.material.Dye;
 
 import com.gmail.nossr50.mcMMO;
-import com.gmail.nossr50.config.Config;
-import com.gmail.nossr50.config.mods.CustomArmorConfig;
-import com.gmail.nossr50.config.mods.CustomToolConfig;
 import com.gmail.nossr50.config.party.ItemWeightConfig;
 import com.gmail.nossr50.locale.LocaleLoader;
 
@@ -33,7 +32,7 @@ public final class ItemUtils {
                 return true;
 
             default:
-                return (Config.getInstance().getToolModsEnabled() && CustomToolConfig.getInstance().isCustomBow(type));
+                return mcMMO.getModManager().isCustomBow(type);
         }
     }
 
@@ -55,7 +54,7 @@ public final class ItemUtils {
                 return true;
 
             default:
-                return (Config.getInstance().getToolModsEnabled() && CustomToolConfig.getInstance().isCustomSword(type));
+                return mcMMO.getModManager().isCustomSword(type);
         }
     }
 
@@ -77,7 +76,7 @@ public final class ItemUtils {
                 return true;
 
             default:
-                return (Config.getInstance().getToolModsEnabled() && CustomToolConfig.getInstance().isCustomHoe(type));
+                return mcMMO.getModManager().isCustomHoe(type);
         }
     }
 
@@ -99,7 +98,7 @@ public final class ItemUtils {
                 return true;
 
             default:
-                return (Config.getInstance().getToolModsEnabled() && CustomToolConfig.getInstance().isCustomShovel(type));
+                return mcMMO.getModManager().isCustomShovel(type);
         }
     }
 
@@ -121,7 +120,7 @@ public final class ItemUtils {
                 return true;
 
             default:
-                return (Config.getInstance().getToolModsEnabled() && CustomToolConfig.getInstance().isCustomAxe(type));
+                return mcMMO.getModManager().isCustomAxe(type);
         }
     }
 
@@ -143,7 +142,7 @@ public final class ItemUtils {
                 return true;
 
             default:
-                return (Config.getInstance().getToolModsEnabled() && CustomToolConfig.getInstance().isCustomPickaxe(type));
+                return mcMMO.getModManager().isCustomPickaxe(type);
         }
     }
 
@@ -165,7 +164,7 @@ public final class ItemUtils {
                 return true;
 
             default:
-                return Config.getInstance().getArmorModsEnabled() && CustomArmorConfig.getInstance().isCustomHelmet(type);
+                return mcMMO.getModManager().isCustomHelmet(type);
         }
     }
 
@@ -187,7 +186,7 @@ public final class ItemUtils {
                 return true;
 
             default:
-                return Config.getInstance().getArmorModsEnabled() && CustomArmorConfig.getInstance().isCustomChestplate(type);
+                return mcMMO.getModManager().isCustomChestplate(type);
         }
     }
 
@@ -209,7 +208,7 @@ public final class ItemUtils {
                 return true;
 
             default:
-                return Config.getInstance().getArmorModsEnabled() && CustomArmorConfig.getInstance().isCustomLeggings(type);
+                return mcMMO.getModManager().isCustomLeggings(type);
         }
     }
 
@@ -231,7 +230,7 @@ public final class ItemUtils {
                 return true;
 
             default:
-                return Config.getInstance().getArmorModsEnabled() && CustomArmorConfig.getInstance().isCustomBoots(type);
+                return mcMMO.getModManager().isCustomBoots(type);
         }
     }
 
@@ -501,11 +500,7 @@ public final class ItemUtils {
     }
 
     public static boolean isSmeltable(ItemStack item) {
-        if (item == null) {
-            return false;
-        }
-
-        return MaterialUtils.isOre(item.getData());
+        return item != null && MaterialUtils.isOre(item.getData());
     }
 
     public static boolean isSmelted(ItemStack item) {
@@ -593,6 +588,8 @@ public final class ItemUtils {
             case PUMPKIN_SEEDS:
             case WATER_LILY:
             case VINE:
+            case LONG_GRASS:
+            case DOUBLE_PLANT:
                 return true;
 
             case INK_SACK:
@@ -621,7 +618,6 @@ public final class ItemUtils {
             case PORK:
             case GRILLED_PORK:
             case WOOL:
-            case RED_ROSE: // Not sure we should include this, as it will also trigger from herbalism
             case IRON_INGOT:
             case SNOW_BALL:
             case BLAZE_ROD:
@@ -634,11 +630,16 @@ public final class ItemUtils {
             case ARROW:
             case SLIME_BALL:
             case NETHER_STAR:
-            case COAL: // Not sure we should include this, as it will also trigger when mining
             case ROTTEN_FLESH:
             case GOLD_NUGGET:
             case EGG:
                 return true;
+
+            case COAL: // Not sure we should include this, as it will also trigger when mining
+                return (((Coal) item.getData()).getType() == CoalType.COAL);
+
+            case RED_ROSE: // Not sure we should include this, as it will also trigger from herbalism
+                return (item.getData().getData() == 0x0);
 
             default:
                 return false;
@@ -654,7 +655,9 @@ public final class ItemUtils {
     public static boolean isWoodcuttingDrop(ItemStack item) {
         switch (item.getType()) {
             case LOG:
+            case LOG_2:
             case LEAVES:
+            case LEAVES_2:
             case SAPLING:
             case APPLE:
                 return true;
